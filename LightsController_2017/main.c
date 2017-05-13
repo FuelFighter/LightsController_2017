@@ -44,8 +44,7 @@ int main(void)
 	int count_right;
 	int count_left;
 	
-	while (1)
-	{
+	while (1) {
 		if (can_read_message_if_new(&rxFrame)) {
 			rgbled_toggle(LED_ALL);
 			
