@@ -39,7 +39,7 @@ typedef enum {
 
 #define BLINK_COUNT 4
 #define LIGHTS_ON_BIT		0b00000001
-#define HAZARD_BIT			0b00000100
+#define HAZARD_BIT			0b00000010
 #define LEFT_BLINKER_BIT	0b00001000
 #define RIGHT_BLINKER_BIT	0b00010000
 
@@ -48,7 +48,7 @@ typedef enum {
 uint8_t blink_period = 250;	
 LightBlinkMode_t BLINK_STATE = NONE;
 LightMode_t LIGHT_STATE = OFF;
-LightModule_t LIGHT_MODULE = REAR;
+LightModule_t LIGHT_MODULE = FRONT;
 uint8_t light_level = 0;
 uint8_t blink_decrement = BLINK_COUNT;
 CanMessage_t rxFrame;
@@ -96,7 +96,6 @@ int main(void)
 				pwm_set_duty_cycle(FL,light_level);
 				pwm_set_duty_cycle(FR,light_level);
 			}
-			
 			switch (BLINK_STATE)
 			{
 				case LEFT:
@@ -154,14 +153,16 @@ void handle_can()
 				LIGHT_STATE = OFF;		
 			 }
 			 
-			 if (rxFrame.data.u8[1] & HAZARD_BIT)
+			 if ((rxFrame.data.u8[0] & HAZARD_BIT) && BLINK_STATE != HAZARD)
 			 {
 				 pwm_set_duty_cycle(BR,0x00);
 				 pwm_set_duty_cycle(BL,0x00);
 				 BLINK_STATE = HAZARD;
 			 }
-			 else if (!(rxFrame.data.u8[1] & HAZARD_BIT) && (BLINK_STATE == HAZARD))
+			 else if (!(rxFrame.data.u8[0] & HAZARD_BIT) && (BLINK_STATE == HAZARD))
 			 {
+				 pwm_set_duty_cycle(BR,0x00);
+				 pwm_set_duty_cycle(BL,0x00);
 				 BLINK_STATE = NONE;
 			 }
 			 
@@ -172,7 +173,6 @@ void handle_can()
 		 {
 			if (rxFrame.data.u8[1] & LEFT_BLINKER_BIT) 
 			{
-				rgbled_turn_on(LED_RED);
 				if ((BLINK_STATE == NONE) | (BLINK_STATE == LEFT))
 				{
 					BLINK_STATE = LEFT;
@@ -187,12 +187,13 @@ void handle_can()
 			} 
 			else if (rxFrame.data.u8[1] & RIGHT_BLINKER_BIT)
 			{
-				if ((BLINK_STATE == NONE) | (BLINK_STATE == LEFT))
+				rgbled_turn_off(LED_RED);
+				if ((BLINK_STATE == NONE) | (BLINK_STATE == RIGHT))
 				{
 					BLINK_STATE = RIGHT;
 					blink_decrement = BLINK_COUNT;
 				} 
-				else if (BLINK_STATE == RIGHT)
+				else if (BLINK_STATE == LEFT)
 				{
 					pwm_set_duty_cycle(BL,0x00);
 					BLINK_STATE = RIGHT;
@@ -209,47 +210,54 @@ void handle_can()
 	 {
 		 if (!timer_is_running(TIMER1))
 		 {
-			 pwm_set_duty_cycle(BL,0xFF);
 			 timer_start(TIMER1);
+			 pwm_set_duty_cycle(BL,0x01);
 		 }
-		 else if (timer_elapsed_ms(TIMER1) > 250)
+		 else if (timer_elapsed_ms(TIMER1) < blink_period)
 		 {
-			 pwm_set_duty_cycle(BL,0x00);
+			 pwm_set_duty_cycle(BL,0x01);
 		 }
-		 else if (timer_elapsed_ms(TIMER1) > 500)
+		 else if ((timer_elapsed_ms(TIMER1) > blink_period) && (timer_elapsed_ms(TIMER1) < (2*blink_period)))
 		 {
-			 pwm_set_duty_cycle(BL,0xFF);
+			 pwm_set_duty_cycle(BL,0x0);
+		 }
+		 else if (timer_elapsed_ms(TIMER1) > (2*blink_period))
+		 {
+			 pwm_set_duty_cycle(BL,0x01);
 			 timer_stop(TIMER1);
+			 blink_decrement--;
 		 }
-		 blink_decrement--;
 	 }
 	 else
 	 {
-		 rgbled_turn_off(LED_RED);
 		 BLINK_STATE = NONE;
 		 pwm_set_duty_cycle(BL,0x00);
 	 }
  }
  
  void blink_right()
- {
+ {	
 	 if (blink_decrement)
 	 {
 		 if (!timer_is_running(TIMER1))
 		 {
-			 pwm_set_duty_cycle(BR,0xFF);
 			 timer_start(TIMER1);
+			 pwm_set_duty_cycle(BR,0x01);
 		 }
-		 else if (timer_elapsed_ms(TIMER1) > blink_period)
+		 else if (timer_elapsed_ms(TIMER1) < blink_period)
 		 {
-			 pwm_set_duty_cycle(BR,0x00);
+			 pwm_set_duty_cycle(BR,0x01);
+		 }
+		 else if ((timer_elapsed_ms(TIMER1) > blink_period) && (timer_elapsed_ms(TIMER1) < (2*blink_period)))
+		 {
+			 pwm_set_duty_cycle(BR,0x0);
 		 }
 		 else if (timer_elapsed_ms(TIMER1) > (2*blink_period))
 		 {
-			 pwm_set_duty_cycle(BR,0xFF);
-			 timer_stop(TIMER1);
-		 }
-		 blink_decrement--;
+			pwm_set_duty_cycle(BR,0x01);
+			timer_stop(TIMER1);
+			blink_decrement--;
+		} 
 	 }
 	 else
 	 {
