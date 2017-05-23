@@ -50,12 +50,12 @@ int main(void)
 			
 			if (rxFrame.id == DASHBOARD_CAN_ID) {
 				if (rxFrame.data.u8[0] & (1<<0)) {
-					pwm_set_duty_cycle(PWM_PE3,lightlvl);
-					pwm_set_duty_cycle(PWM_PE4,lightlvl);
+					pwm_set_duty_cycle(PWM_PE3,0xFF);
+					pwm_set_duty_cycle(PWM_PE4,0xFF);
 							
 					} else {
-					pwm_set_duty_cycle(PWM_PE3,lightlvl);
-					pwm_set_duty_cycle(PWM_PE4,lightlvl);
+					pwm_set_duty_cycle(PWM_PE3,0);
+					pwm_set_duty_cycle(PWM_PE4,0);
 					}
 				lightlvl = rxFrame.data.u8[1];
 				
